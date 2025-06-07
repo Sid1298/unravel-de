@@ -1,38 +1,21 @@
-import os
-import json
+import sqlite3
+import database
 import requests
 from bs4 import BeautifulSoup
-from datetime import datetime, timezone
-
-SKIFT_URL = "https://skift.com/news/page/"
-TIMESTAMP_FILE = "last_scraped.json"
+from datetime import datetime
 
 
-def load_last_scraped_time():
-    if os.path.exists(TIMESTAMP_FILE):
-        with open(TIMESTAMP_FILE, "r") as f:
-            data = json.load(f)
-            return datetime.fromisoformat(data["last_scraped"])
-    return datetime.min.replace(tzinfo=timezone.utc)
-
-
-def save_last_scraped_time(latest_time):
-    with open(TIMESTAMP_FILE, "w") as f:
-        json.dump({"last_scraped": latest_time.isoformat()}, f)
-
-
-def fetch_page(url):
+def fetch_page(url:str):
     headers = {"User-Agent": "Mozilla/5.0"}
     response = requests.get(url, headers=headers)
     response.raise_for_status()
     return response.text
 
 
-def parse_articles(html):
+def parse_articles(html:str):
     soup = BeautifulSoup(html, "lxml")
     article_elements = soup.find_all("article")
     articles = []
-
     for article in article_elements:
         try:
             niche_tag = article.select_one(
@@ -65,24 +48,21 @@ def parse_articles(html):
     return articles
 
 
-def main():
-    last_scraped_time = load_last_scraped_time()
+def fetch_latest_skift(skift_url: str):
     articles = []
     for page_number in range(1, 11):
-        html = fetch_page(SKIFT_URL+f'{page_number}')
+        html = fetch_page(skift_url+f'{page_number}')
         articles.extend(parse_articles(html))
-    new_articles = [
-        a for a in articles if a["publish_timestamp"] > last_scraped_time]
-    if not new_articles:
-        print("No new articles found.")
-        return
-    new_articles.sort(key=lambda x: x["publish_timestamp"])
-    for article in new_articles:
-        print(
-            f"[{article['publish_timestamp']}] {article['title']} -> {article['article_link']}")
-    latest_time = new_articles[-1]["publish_timestamp"]
-    save_last_scraped_time(latest_time)
+    if len(articles) == 0:
+        print("No new articles found...")
+    return articles
 
 
-if __name__ == "__main__":
-    main()
+def load_skift_articles(connection: sqlite3.Connection):
+    articles = fetch_latest_skift()
+    num_loaded_rows = database.insert_skift_articles(connection, articles)
+    return num_loaded_rows
+
+
+def show_latest_skift(connection: sqlite3.Connection):
+    return database.show_latest_articles(connection, "skift", 5)
