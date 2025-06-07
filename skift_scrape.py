@@ -58,8 +58,8 @@ def fetch_latest_skift(skift_url: str):
     return articles
 
 
-def load_skift_articles(connection: sqlite3.Connection):
-    articles = fetch_latest_skift()
+def load_skift_articles(connection: sqlite3.Connection, url:str):
+    articles = fetch_latest_skift(url)
     num_loaded_rows = database.insert_skift_articles(connection, articles)
     return num_loaded_rows
 
