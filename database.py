@@ -37,6 +37,7 @@ def create_skift_table(connection: sqlite3.Connection):
 
 
 def insert_skift_articles(connection: sqlite3.Connection, articles: List[dict]):
+    create_skift_table()
     insert_counter = 0
     cursor = connection.cursor()
 
